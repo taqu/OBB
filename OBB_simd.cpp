@@ -1,4 +1,5 @@
 ﻿#include "OBB_simd.h"
+#include <cassert>
 #include <limits>
 #include <tuple>
 #if defined(__SSE2__) || defined(__SSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)

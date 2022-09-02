@@ -6,10 +6,8 @@
 #    include <stdio.h>
 #endif
 
-#include <algorithm>
-#include <cmath>
+#include <cassert>
 #include <limits>
-#include <optional>
 #include <random>
 
 namespace obb
@@ -151,6 +149,9 @@ void orthonormalBasis(Vector3& binormal0, Vector3& binormal1, const Vector3& nor
 
 namespace
 {
+    /**
+     * @brief Kahan's summation
+     */
     Vector3 kahan(u32 size, const Vector3* points)
     {
         Vector3 sum = {};
@@ -164,6 +165,9 @@ namespace
         return sum;
     }
 
+    /**
+     * @brief Kahan's summation
+     */
     void kahan(f32* OBB_RESTRICT sum, f32* OBB_RESTRICT error, f32 x)
     {
         f32 y = x - *error;
@@ -172,6 +176,9 @@ namespace
         *sum = t;
     }
 
+    /**
+     * @brief Kahan's summation
+     */
     void kahan(f32 covariance[9], u32 size, const Vector3* points, const Vector3& average)
     {
         f32 errors[6] = {};
@@ -264,14 +271,14 @@ namespace
     //
     static constexpr f32 Sqrt3 = static_cast<f32>(0.57735026918962576450914878050196);
     static const Vector3 N07[7] =
-        {
-            {1.0f, 0.0f, 0.0f},
-            {0.0f, 1.0f, 0.0f},
-            {0.0f, 0.0f, 1.0f},
-            {Sqrt3, Sqrt3, Sqrt3},
-            {Sqrt3, Sqrt3, -Sqrt3},
-            {Sqrt3, -Sqrt3, Sqrt3},
-            {Sqrt3, -Sqrt3, -Sqrt3},
+    {
+        {1.0f, 0.0f, 0.0f},
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, 0.0f, 1.0f},
+        {Sqrt3, Sqrt3, Sqrt3},
+        {Sqrt3, Sqrt3, -Sqrt3},
+        {Sqrt3, -Sqrt3, Sqrt3},
+        {Sqrt3, -Sqrt3, -Sqrt3},
     };
 
     f32 halfBoxArea(const Vector3& extent)
@@ -447,7 +454,8 @@ namespace
         obb.center_ += center.y_ * b1;
         obb.center_ += center.z_ * b2;
     }
-} // namespace
+}
+// namespace
 
 void PCA(OBB& obb, u32 size, const Vector3* points)
 {
@@ -516,10 +524,6 @@ void DiTO(OBB& obb, u32 size, const Vector3* points)
     Vector3 minmax[NumPoints];
     auto [maxDistance, i0, i1] = findPoints(minmax, size, points, NumPoints/2, N07);
 
-    //for(u32 i=0; i<NumPoints; ++i){
-    //    printf("[%d] %f %f %f\n", i, minmax[i].x_, minmax[i].y_, minmax[i].z_);
-    //}
-    //printf("%d %d\n", i0, i1);
     if(maxDistance < Epsilon) {
         Vector3 point0 = {minmax[0].x_, minmax[2].y_, minmax[4].z_};
         Vector3 point1 = {minmax[1].x_, minmax[3].y_, minmax[5].z_};
@@ -528,7 +532,6 @@ void DiTO(OBB& obb, u32 size, const Vector3* points)
     }
     Vector3 e0 = normalize(points[i1] - points[i0]);
     auto [maxLineDistance, i2] = findFurthestPoint(points[i0], e0, size, points);
-    //printf("max:%f,%d\n", maxLineDistance, i2);
     if(maxLineDistance < Epsilon) {
         lineAlignedOBB(obb, e0, size, points);
         return;
@@ -591,7 +594,6 @@ void DiTO(OBB& obb, u32 size, const Vector3* points)
         findMinMax(minx.x_, maxx.x_, b0, size, points);
         findMinMax(minx.y_, maxx.y_, b1, size, points);
         findMinMax(minx.z_, maxx.z_, b2, size, points);
-        //printf("(%f %f %f) - (%f %f %f)\n", minx.x_, minx.y_, minx.z_, maxx.x_, maxx.y_, maxx.z_);
         Vector3 extent = maxx - minx;
         minArea = halfBoxArea(extent);
 
@@ -614,6 +616,7 @@ void DiTO(OBB& obb, u32 size, const Vector3* points)
 
 void getPoints(u32 indices[36], Vector3 points[8], const OBB& obb)
 {
+    //Get 8 corner points
     points[0] = -(obb.axis0_ * obb.half_.x_) + (obb.axis1_ * obb.half_.y_) + (obb.axis2_ * obb.half_.z_) + obb.center_;
     points[1] = (obb.axis0_ * obb.half_.x_) + (obb.axis1_ * obb.half_.y_) + (obb.axis2_ * obb.half_.z_) + obb.center_;
     points[2] = (obb.axis0_ * obb.half_.x_) - (obb.axis1_ * obb.half_.y_) + (obb.axis2_ * obb.half_.z_) + obb.center_;
