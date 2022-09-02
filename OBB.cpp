@@ -451,7 +451,10 @@ namespace
 
 void PCA(OBB& obb, u32 size, const Vector3* points)
 {
-    assert(0 < size);
+    if(size<=0){
+        obb = {};
+        return;
+    }
     Vector3 average = kahan(size, points);
     f32 invSize = 1.0f / size;
     average *= invSize;
@@ -505,6 +508,10 @@ void PCA(OBB& obb, u32 size, const Vector3* points)
 
 void DiTO(OBB& obb, u32 size, const Vector3* points)
 {
+    if(size<=0){
+        obb = {};
+        return;
+    }
     static const u32 NumPoints = 14;
     Vector3 minmax[NumPoints];
     auto [maxDistance, i0, i1] = findPoints(minmax, size, points, NumPoints/2, N07);

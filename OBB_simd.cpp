@@ -603,6 +603,11 @@ namespace
 
 void DiTO_simd(OBB& obb, u32 size, const Vector3* points)
 {
+    if(size<=0){
+        obb = {};
+        return;
+    }
+
     OBB_ALIGN16 SoA8 minmax;
     auto [maxDistance, i0, i1] = findPoints(minmax, size, points);
     //for(u32 i = 0; i < InitialPoints; ++i) {

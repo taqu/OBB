@@ -100,7 +100,7 @@ std::tuple<std::chrono::nanoseconds, f32, u32, f32> procPCA(u32 numSamples, u32 
     PCA(result, numSamples, points);
     std::chrono::duration duration = std::chrono::high_resolution_clock::now() - start;
     char buffer[128];
-    snprintf(buffer, sizeof(buffer), "./out/obb_pca_%04d.ply", count);
+    snprintf(buffer, sizeof(buffer), "./out/obb_pca_%04d_%04d.ply", numSamples, count);
     auto validation = validate(result, numSamples, points, buffer);
     free(points);
     return std::make_tuple(std::chrono::duration_cast<std::chrono::nanoseconds>(duration), validation.maxDistance_, validation.countOuter_, validation.area_);
@@ -130,7 +130,7 @@ std::tuple<std::chrono::nanoseconds, f32, u32, f32> procDiTO(u32 numSamples, u32
     DiTO(result, numSamples, points);
     std::chrono::duration duration = std::chrono::high_resolution_clock::now() - start;
     char buffer[128];
-    snprintf(buffer, sizeof(buffer), "./out/obb_dito_%04d.ply", count);
+    snprintf(buffer, sizeof(buffer), "./out/obb_dito_%04d_%04d.ply", numSamples, count);
     auto validation = validate(result, numSamples, points, buffer);
     free(points);
     return std::make_tuple(std::chrono::duration_cast<std::chrono::nanoseconds>(duration), validation.maxDistance_, validation.countOuter_, validation.area_);
@@ -160,7 +160,7 @@ std::tuple<std::chrono::nanoseconds, f32, u32, f32> procDiTO_simd(u32 numSamples
     DiTO_simd(result, numSamples, points);
     std::chrono::duration duration = std::chrono::high_resolution_clock::now() - start;
     char buffer[128];
-    snprintf(buffer, sizeof(buffer), "./out/obb_dito_simd_%04d.ply", count);
+    snprintf(buffer, sizeof(buffer), "./out/obb_dito_simd_%04d_%04d.ply", numSamples, count);
     auto validation = validate(result, numSamples, points, buffer);
     free(points);
     return std::make_tuple(std::chrono::duration_cast<std::chrono::nanoseconds>(duration), validation.maxDistance_, validation.countOuter_, validation.area_);
@@ -170,7 +170,7 @@ using func_type = std::function<std::tuple<std::chrono::nanoseconds, f32, u32, f
 
 void proc(u32 numSamples, s32 count, f32 scale0, f32 scale1, u32 seed, const char* name, func_type func)
 {
-        printf("---\nobb %s\n---\n", name);
+        printf("---\nobb %s %d samples\n---\n", name, numSamples);
         std::chrono::nanoseconds maxDuration = {};
         std::chrono::nanoseconds totalDuration = {};
         f32 maxDistance = -std::numeric_limits<f32>::infinity();
@@ -234,8 +234,15 @@ int main(void)
     static constexpr f32 Scale0 = 1.0e3f;
     static constexpr f32 Scale1 = 1.0f;
 
+    for(s32 i=0; i<8; ++i){
+        proc(i, 10, Scale0, Scale1, seed, "pca", procPCA);
+    proc(i, 10, Scale0, Scale1, seed, "gito", procDiTO);
+    proc(i, 10, Scale0, Scale1, seed, "gito_simd", procDiTO_simd);
+    }
+    #if 0
     proc(Samples, Count, Scale0, Scale1, seed, "pca", procPCA);
     proc(Samples, Count, Scale0, Scale1, seed, "gito", procDiTO);
     proc(Samples, Count, Scale0, Scale1, seed, "gito_simd", procDiTO_simd);
+    #endif
     return 0;
 }
