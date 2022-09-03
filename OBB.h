@@ -74,6 +74,7 @@ Vector3 normalizeSafe(const Vector3& x);
 f32 distanceSqr(const Vector3& x0, const Vector3& x1);
 void orthonormalBasis(Vector3& binormal0, Vector3& binormal1, const Vector3& normal);
 
+//---------------------------------------------
 struct OBB
 {
     Vector3 center_;
@@ -83,6 +84,7 @@ struct OBB
     Vector3 half_;
 };
 
+//---------------------------------------------
 /**
 * @brief Calculate OBB by PCA
 * @param [out] obb ... OBB
@@ -99,6 +101,9 @@ void PCA(OBB& obb, u32 size, const Vector3* points);
 */
 void DiTO(OBB& obb, u32 size, const Vector3* points);
 
+
+//--- Validation
+//---------------------------------------------
 /**
  * @brief Get 8 points from a OBB
  * @param [out] indices ... indices for 12 triangles
@@ -107,7 +112,6 @@ void DiTO(OBB& obb, u32 size, const Vector3* points);
  */
 void getPoints(u32 indices[36], Vector3 points[8], const OBB& obb);
 
-//---------------------------------------------
 struct Validation
 {
     f32 maxDistance_; //!< the maximum distance of excluded points

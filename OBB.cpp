@@ -120,7 +120,7 @@ Vector3 normalize(const Vector3& x)
 Vector3 normalizeSafe(const Vector3& x)
 {
     f32 l = ::sqrtf(x.lengthSqr());
-    if(l < 1.0e-6f) {
+    if(l < Epsilon) {
         return {0.0f, 0.0f, 0.0f};
     }
     f32 inv = 1.0f / l;
@@ -135,7 +135,7 @@ f32 distanceSqr(const Vector3& x0, const Vector3& x1)
 
 void orthonormalBasis(Vector3& binormal0, Vector3& binormal1, const Vector3& normal)
 {
-    if(normal.z_ < -0.9999999f) {
+    if(normal.z_ < -0.999f) {
         binormal0 = {0.0f, -1.0f, 0.0f};
         binormal1 = {-1.0f, 0.0f, 0.0f};
         return;
@@ -205,18 +205,18 @@ namespace
 
     bool jacobi(f32 M[9], f32 N[9])
     {
-        static constexpr u32 size = 3;
+        static constexpr u32 Size = 3;
         static constexpr u32 MaxIteration = 100;
         ::memset(N, 0, sizeof(f32) * 9);
         f32 cs;
         f32 sn = 0.0f;
         f32 offdiag = 0.0f;
-        for(u32 i = 0; i < size; ++i) {
-            N[i * size + i] = 1.0f;
-            u32 t = i * size + i;
+        for(u32 i = 0; i < Size; ++i) {
+            N[i * Size + i] = 1.0f;
+            u32 t = i * Size + i;
             sn += M[t] * M[t];
-            for(u32 j = i + 1; j < size; ++j) {
-                t = i * size + j;
+            for(u32 j = i + 1; j < Size; ++j) {
+                t = i * Size + j;
                 offdiag += M[t] * M[t];
             }
         } // for(u32 i
@@ -224,8 +224,8 @@ namespace
         u32 iteration = 0;
         for(; iteration < MaxIteration; ++iteration) {
             offdiag = 0.0f;
-            for(u32 i = 0; i < size - 1; ++i) {
-                for(u32 j = i + 1; j < size; ++j) {
+            for(u32 i = 0; i < Size - 1; ++i) {
+                for(u32 j = i + 1; j < Size; ++j) {
                     u32 t = i * 3 + j;
                     offdiag += M[t] * M[t];
                 }
@@ -233,12 +233,12 @@ namespace
             if(offdiag < tolerance) {
                 break;
             }
-            for(u32 i = 0; i < size - 1; ++i) {
-                for(u32 j = i + 1; j < size; ++j) {
-                    if(::fabsf(M[i * size + j]) < AlmostZero) {
+            for(u32 i = 0; i < Size - 1; ++i) {
+                for(u32 j = i + 1; j < Size; ++j) {
+                    if(::fabsf(M[i * Size + j]) < AlmostZero) {
                         continue;
                     }
-                    f32 t = (M[j * size + j] - M[i * size + i]) / (2.0f * M[i * size + j]);
+                    f32 t = (M[j * Size + j] - M[i * Size + i]) / (2.0f * M[i * Size + j]);
                     if(0.0f <= t) {
                         t = 1.0f / (t + ::sqrtf(t * t + 1.0f));
                     } else {
@@ -246,20 +246,20 @@ namespace
                     }
                     cs = 1.0f / ::sqrtf(t * t + 1.0f);
                     sn = t * cs;
-                    t *= M[i * size + j];
-                    M[i * size + i] -= t;
-                    M[j * size + j] += t;
-                    M[i * size + j] = 0.0f;
+                    t *= M[i * Size + j];
+                    M[i * Size + i] -= t;
+                    M[j * Size + j] += t;
+                    M[i * Size + j] = 0.0f;
                     for(u32 k = 0; k < i; ++k) {
                         rotate(M, k, i, k, j, cs, sn);
                     }
                     for(u32 k = i + 1; k < j; ++k) {
                         rotate(M, i, k, k, j, cs, sn);
                     }
-                    for(u32 k = j + 1; k < size; ++k) {
+                    for(u32 k = j + 1; k < Size; ++k) {
                         rotate(M, i, k, j, k, cs, sn);
                     }
-                    for(u32 k = 0; k < size; ++k) {
+                    for(u32 k = 0; k < Size; ++k) {
                         rotate(N, i, k, j, k, cs, sn);
                     }
                 } // for(u32 j
@@ -301,6 +301,15 @@ namespace
         return maxx - minx;
     }
 
+    /**
+     * @brief Find the min and max points along normals
+     * @param [out] results ... min and max points for each normals
+     * @param [in] size ... number of points
+     * @param [in] points ... target points
+     * @param [in] numNormals ... number of normals
+     * @param [in] normals ... finding along these normals
+     * @return a tuple of a maximum distance, a pair of indices
+     */
     std::tuple<f32, u32, u32> findPoints(Vector3* OBB_RESTRICT results, u32 size, const Vector3* OBB_RESTRICT points, u32 numNormals, const Vector3* OBB_RESTRICT normals)
     {
         u32 count = 0;
@@ -627,6 +636,7 @@ void getPoints(u32 indices[36], Vector3 points[8], const OBB& obb)
     points[6] = (obb.axis0_ * obb.half_.x_) - (obb.axis1_ * obb.half_.y_) - (obb.axis2_ * obb.half_.z_) + obb.center_;
     points[7] = -(obb.axis0_ * obb.half_.x_) - (obb.axis1_ * obb.half_.y_) - (obb.axis2_ * obb.half_.z_) + obb.center_;
 
+    // Make triangle indices
     ::memset(indices, 0, sizeof(s32) * 36);
     // 0
     indices[0] = 1;
