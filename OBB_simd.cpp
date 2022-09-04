@@ -2,20 +2,6 @@
 #include <cassert>
 #include <limits>
 #include <tuple>
-#if defined(__SSE2__) || defined(__SSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
-#ifdef _MSC_VER
-#    include <intrin.h>
-#elif defined(__GNUC__) || defined(__clang__)
-# include <x86intrin.h>
-#endif
-
-using float4 = __m128;
-using int4 = __m128i;
-
-#elif defined(__ARM_NEON)
-#    include <arm_neon.h>
-using float4 = float32x4_t;
-#endif
 
 #ifdef _MSC_VER
 #    define OBB_ALIGN16 __declspec(align(16))
@@ -23,6 +9,140 @@ using float4 = float32x4_t;
 #else
 #    define OBB_ALIGN16 __attribute__((aligned(16)))
 #    define OBB_ALIGN(x) __attribute__((aligned(x)))
+#endif
+
+#if defined(__SSE2__) || defined(__SSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
+#ifdef _MSC_VER
+#    include <intrin.h>
+#elif defined(__GNUC__) || defined(__clang__)
+# include <x86intrin.h>
+#endif
+using float4 = __m128;
+using int4 = __m128i;
+#define OBB_SSE (1)
+#define OBB_NEON (0)
+
+#define SIMD_LOAD_F4(x) _mm_load_ps(x)
+#define SIMD_STORE_F4(x0, x1) _mm_store_ps(x0, x1)
+
+#define SIMD_SET1_F4(x) _mm_set1_ps(x)
+#define SIMD_SET1_I4(x) _mm_set1_epi32(x)
+
+inline float4 SIMD_SET_F4(obb::f32 x, obb::f32 y, obb::f32 z, obb::f32 w)
+{
+    return _mm_set_ps(x, y, z, w);
+}
+
+inline float4 SIMD_SETR_F4(obb::f32 x, obb::f32 y, obb::f32 z, obb::f32 w)
+{
+    return _mm_setr_ps(x, y, z, w);
+}
+
+inline int4 SIMD_SET_I4(obb::s32 x, obb::s32 y, obb::s32 z, obb::s32 w)
+{
+    return _mm_set_epi32(x, y, z, w);
+}
+
+#define SIMD_CAST_F4_I4(x) _mm_castps_si128(x)
+#define SIMD_CAST_I4_F4(x) _mm_castsi128_ps(x)
+
+#define SIMD_ADD_F4(x0, x1) _mm_add_ps(x0, x1)
+#define SIMD_SUB_F4(x0, x1) _mm_sub_ps(x0, x1)
+#define SIMD_MUL_F4(x0, x1) _mm_mul_ps(x0, x1)
+#define SIMD_MIN_F4(x0, x1) _mm_min_ps(x0, x1)
+#define SIMD_MAX_F4(x0, x1) _mm_max_ps(x0, x1)
+
+
+#define SIMD_CMPLT_F4(x0, x1) _mm_cmplt_ps(x0, x1)
+#define SIMD_AND_F4(x0, x1) _mm_and_ps(x0, x1)
+#define SIMD_OR_F4(x0, x1) _mm_or_ps(x0, x1)
+#define SIMD_ANDNOT_F4(x0, x1) _mm_andnot_ps(x0, x1)
+
+#define SIMD_STORE_I4(x0, x1) _mm_store_si128(reinterpret_cast<int4*>(x0), x1)
+
+#define SIMD_ADD_I4(x0, x1) _mm_add_epi32(x0, x1)
+
+#define SIMD_AND_I4(x0, x1) _mm_and_si128(x0, x1)
+#define SIMD_OR_I4(x0, x1) _mm_or_si128(x0, x1)
+#define SIMD_ANDNOT_I4(x0, x1) _mm_andnot_si128(x0, x1)
+
+#define blend(x0, x1, c0, c1, c2, c3) \
+    _mm_blend_ps(x0, x1, (c0 << 0) | (c1 << 1) | (c2 << 2) | (c3 << 3))
+
+#define shuffle(x0, x1, c0, c1, c2, c3) \
+    _mm_shuffle_ps(x0, x1, _MM_SHUFFLE(c3, c2, c1, c0))
+
+#elif defined(__ARM_NEON)
+#    include <arm_neon.h>
+using float4 = float32x4_t;
+using int4 = int32x4_t;
+#define OBB_SSE (0)
+#define OBB_NEON (1)
+
+#define SIMD_LOAD_F4(x) vld1q_f32(x)
+#define SIMD_STORE_F4(x0, x1) vst1q_f32(x0, x1)
+
+#define SIMD_SET1_F4(x) vdupq_n_f32(x)
+#define SIMD_SET1_I4(x) vmovq_n_s32(x)
+
+inline float4 SIMD_SET_F4(obb::f32 x, obb::f32 y, obb::f32 z, obb::f32 w)
+{
+	obb::f32 OBB_ALIGN16 data[4] = {w, z, y, x};
+	return vld1q_f32(data);
+}
+
+inline float4 SIMD_SETR_F4(obb::f32 x, obb::f32 y, obb::f32 z, obb::f32 w)
+{
+	obb::f32 OBB_ALIGN16 data[4] = {x, y, z, w};
+	return vld1q_f32(data);
+}
+
+inline int4 SIMD_SET_I4(obb::s32 x, obb::s32 y, obb::s32 z, obb::s32 w)
+{
+	obb::s32 OBB_ALIGN16 data[4] = {w, z, y, x};
+	return vld1q_s32(data);
+}
+
+#define SIMD_CAST_F4_I4(x) vreinterpretq_s32_f32(x)
+#define SIMD_CAST_I4_F4(x) vreinterpretq_f32_s32(x)
+
+#define SIMD_ADD_F4(x0, x1) vaddq_f32(x0, x1)
+#define SIMD_SUB_F4(x0, x1) vsubq_f32(x0, x1)
+#define SIMD_MUL_F4(x0, x1) vmulq_f32(x0, x1)
+#define SIMD_MIN_F4(x0, x1) vminq_f32(x0, x1)
+#define SIMD_MAX_F4(x0, x1) vmaxq_f32(x0, x1)
+
+#define SIMD_CMPLT_F4(x0, x1) vreinterpretq_f32_u32(vcltq_f32(x0, x1))
+#define SIMD_AND_F4(x0, x1) SIMD_CAST_I4_F4(vandq_s32(SIMD_CAST_F4_I4(x0), SIMD_CAST_F4_I4(x1)))
+#define SIMD_OR_F4(x0, x1) SIMD_CAST_I4_F4(vorrq_s32(SIMD_CAST_F4_I4(x0), SIMD_CAST_F4_I4(x1)))
+#define SIMD_ANDNOT_F4(x0, x1) SIMD_CAST_I4_F4(vbicq_s32(SIMD_CAST_F4_I4(x0), SIMD_CAST_F4_I4(x1)))
+
+#define SIMD_STORE_I4(x0, x1) vst1q_s32(reinterpret_cast<obb::s32*>(x0), x1)
+
+#define SIMD_ADD_I4(x0, x1) vaddq_s32(x0, x1)
+
+#define SIMD_AND_I4(x0, x1) vandq_s32(x0, x1)
+#define SIMD_OR_I4(x0, x1) vorrq_s32(x0, x1)
+#define SIMD_ANDNOT_I4(x0, x1) vbicq_s32(x0, x1)
+
+namespace
+{
+float4 shuffle(float4 x0, float4 x1, obb::u32 c0, obb::u32 c1, obb::u32 c2, obb::u32 c3)
+{
+    assert(c0<4 && c1<4 && c2<4 && c3<4);
+    obb::u32 imm = ((c3 << 6) | (c2 << 4) | (c1 << 2) | (c0));
+	float4 ret;
+	ret[0] = x0[imm & 0x3];
+	ret[1] = x0[(imm >> 2) & 0x3];
+	ret[2] = x1[(imm >> 4) & 0x03];
+	ret[3] = x1[(imm >> 6) & 0x03];
+	return ret;
+}
+}
+
+#else
+#define OBB_SSE (0)
+#define OBB_NEON (0)
 #endif
 
 namespace obb
@@ -107,12 +227,6 @@ namespace
 
     using SoA8 = TSoA<Normals * 2>;
 
-#define blend(x0, x1, c0, c1, c2, c3) \
-    _mm_blend_ps(x0, x1, (c0 << 0) | (c1 << 1) | (c2 << 2) | (c3 << 3))
-
-#define shuffle(x0, x1, c0, c1, c2, c3) \
-    _mm_shuffle_ps(x0, x1, _MM_SHUFFLE(c3, c2, c1, c0))
-
 #if 0
     void aos2soa(float4& x, float4& y, float4& z, const Vector3 src[4])
     {
@@ -159,35 +273,35 @@ namespace
         }
         return maxx - minx;
 #else
-        float4 nx = _mm_set1_ps(normal.x_);
-        float4 ny = _mm_set1_ps(normal.y_);
-        float4 nz = _mm_set1_ps(normal.z_);
-        float4 minx4 = _mm_set1_ps(Infinity);
-        float4 maxx4 = _mm_set1_ps(-Infinity);
+        float4 nx = SIMD_SET1_F4(normal.x_);
+        float4 ny = SIMD_SET1_F4(normal.y_);
+        float4 nz = SIMD_SET1_F4(normal.z_);
+        float4 minx4 = SIMD_SET1_F4(Infinity);
+        float4 maxx4 = SIMD_SET1_F4(-Infinity);
         u32 size4 = size & ~(Dim - 1);
         for(u32 i = 0; i < size4; i += 4) {
             //float4 px, py, pz;
             //aos2soa(px, py, pz, points + i);
-            float4 px = _mm_set_ps(points[i+3].x_, points[i+2].x_, points[i+1].x_, points[i+0].x_);
-            float4 py = _mm_set_ps(points[i+3].y_, points[i+2].y_, points[i+1].y_, points[i+0].y_);
-            float4 pz = _mm_set_ps(points[i+3].z_, points[i+2].z_, points[i+1].z_, points[i+0].z_);
+            float4 px = SIMD_SET_F4(points[i+3].x_, points[i+2].x_, points[i+1].x_, points[i+0].x_);
+            float4 py = SIMD_SET_F4(points[i+3].y_, points[i+2].y_, points[i+1].y_, points[i+0].y_);
+            float4 pz = SIMD_SET_F4(points[i+3].z_, points[i+2].z_, points[i+1].z_, points[i+0].z_);
 
-            px = _mm_mul_ps(px, nx);
-            py = _mm_mul_ps(py, ny);
-            pz = _mm_mul_ps(pz, nz);
-            float4 d = _mm_add_ps(px, _mm_add_ps(py, pz));
-            minx4 = _mm_min_ps(minx4, d);
-            maxx4 = _mm_max_ps(maxx4, d);
+            px = SIMD_MUL_F4(px, nx);
+            py = SIMD_MUL_F4(py, ny);
+            pz = SIMD_MUL_F4(pz, nz);
+            float4 d = SIMD_ADD_F4(px, SIMD_ADD_F4(py, pz));
+            minx4 = SIMD_MIN_F4(minx4, d);
+            maxx4 = SIMD_MAX_F4(maxx4, d);
         }
-        minx4 = _mm_min_ps(minx4, shuffle(minx4, minx4, 1, 0, 3, 2));
-        minx4 = _mm_min_ps(minx4, shuffle(minx4, minx4, 2, 3, 0, 1));
-        maxx4 = _mm_max_ps(maxx4, shuffle(maxx4, maxx4, 1, 0, 3, 2));
-        maxx4 = _mm_max_ps(maxx4, shuffle(maxx4, maxx4, 2, 3, 0, 1));
+        minx4 = SIMD_MIN_F4(minx4, shuffle(minx4, minx4, 1, 0, 3, 2));
+        minx4 = SIMD_MIN_F4(minx4, shuffle(minx4, minx4, 2, 3, 0, 1));
+        maxx4 = SIMD_MAX_F4(maxx4, shuffle(maxx4, maxx4, 1, 0, 3, 2));
+        maxx4 = SIMD_MAX_F4(maxx4, shuffle(maxx4, maxx4, 2, 3, 0, 1));
 
         OBB_ALIGN16 f32 dmin[Dim];
         OBB_ALIGN16 f32 dmax[Dim];
-        _mm_store_ps(dmin, minx4);
-        _mm_store_ps(dmax, maxx4);
+        SIMD_STORE_F4(dmin, minx4);
+        SIMD_STORE_F4(dmax, maxx4);
 
         minx = dmin[0];
         maxx = dmax[0];
@@ -224,41 +338,41 @@ namespace
         return maxx - minx;
 #else
 
-        float4 nx = _mm_set1_ps(normal.x_);
-        float4 ny = _mm_set1_ps(normal.y_);
-        float4 nz = _mm_set1_ps(normal.z_);
+        float4 nx = SIMD_SET1_F4(normal.x_);
+        float4 ny = SIMD_SET1_F4(normal.y_);
+        float4 nz = SIMD_SET1_F4(normal.z_);
         float4 minx4;
         float4 maxx4;
 
         {
-            float4 px = _mm_load_ps(soa.x_);
-            float4 py = _mm_load_ps(soa.y_);
-            float4 pz = _mm_load_ps(soa.z_);
-            px = _mm_mul_ps(px, nx);
-            py = _mm_mul_ps(py, ny);
-            pz = _mm_mul_ps(pz, nz);
-            minx4 = maxx4 = _mm_add_ps(px, _mm_add_ps(py, pz));
+            float4 px = SIMD_LOAD_F4(soa.x_);
+            float4 py = SIMD_LOAD_F4(soa.y_);
+            float4 pz = SIMD_LOAD_F4(soa.z_);
+            px = SIMD_MUL_F4(px, nx);
+            py = SIMD_MUL_F4(py, ny);
+            pz = SIMD_MUL_F4(pz, nz);
+            minx4 = maxx4 = SIMD_ADD_F4(px, SIMD_ADD_F4(py, pz));
         }
         for(u32 i = Dim; i < InitialPoints; i += Dim) {
-            float4 px = _mm_load_ps(soa.x_ + i);
-            float4 py = _mm_load_ps(soa.y_ + i);
-            float4 pz = _mm_load_ps(soa.z_ + i);
-            px = _mm_mul_ps(px, nx);
-            py = _mm_mul_ps(py, ny);
-            pz = _mm_mul_ps(pz, nz);
-            float4 d = _mm_add_ps(px, _mm_add_ps(py, pz));
-            minx4 = _mm_min_ps(minx4, d);
-            maxx4 = _mm_max_ps(maxx4, d);
+            float4 px = SIMD_LOAD_F4(soa.x_ + i);
+            float4 py = SIMD_LOAD_F4(soa.y_ + i);
+            float4 pz = SIMD_LOAD_F4(soa.z_ + i);
+            px = SIMD_MUL_F4(px, nx);
+            py = SIMD_MUL_F4(py, ny);
+            pz = SIMD_MUL_F4(pz, nz);
+            float4 d = SIMD_ADD_F4(px, SIMD_ADD_F4(py, pz));
+            minx4 = SIMD_MIN_F4(minx4, d);
+            maxx4 = SIMD_MAX_F4(maxx4, d);
         }
-        minx4 = _mm_min_ps(minx4, shuffle(minx4, minx4, 1, 0, 3, 2));
-        minx4 = _mm_min_ps(minx4, shuffle(minx4, minx4, 2, 3, 0, 1));
-        maxx4 = _mm_max_ps(maxx4, shuffle(maxx4, maxx4, 1, 0, 3, 2));
-        maxx4 = _mm_max_ps(maxx4, shuffle(maxx4, maxx4, 2, 3, 0, 1));
+        minx4 = SIMD_MIN_F4(minx4, shuffle(minx4, minx4, 1, 0, 3, 2));
+        minx4 = SIMD_MIN_F4(minx4, shuffle(minx4, minx4, 2, 3, 0, 1));
+        maxx4 = SIMD_MAX_F4(maxx4, shuffle(maxx4, maxx4, 1, 0, 3, 2));
+        maxx4 = SIMD_MAX_F4(maxx4, shuffle(maxx4, maxx4, 2, 3, 0, 1));
 
         OBB_ALIGN16 f32 dmin[Dim];
         OBB_ALIGN16 f32 dmax[Dim];
-        _mm_store_ps(dmin, minx4);
-        _mm_store_ps(dmax, maxx4);
+        SIMD_STORE_F4(dmin, minx4);
+        SIMD_STORE_F4(dmax, maxx4);
 
         minx = dmin[0];
         maxx = dmax[0];
@@ -320,23 +434,23 @@ namespace
         float4 NX[2];
         float4 NY[2];
         float4 NZ[2];
-        NX[0] = _mm_setr_ps(N08[0].x_, N08[1].x_, N08[2].x_, N08[3].x_);
-        NX[1] = _mm_setr_ps(N08[4].x_, N08[5].x_, N08[6].x_, N08[7].x_);
-        NY[0] = _mm_setr_ps(N08[0].y_, N08[1].y_, N08[2].y_, N08[3].y_);
-        NY[1] = _mm_setr_ps(N08[4].y_, N08[5].y_, N08[6].y_, N08[7].y_);
-        NZ[0] = _mm_setr_ps(N08[0].z_, N08[1].z_, N08[2].z_, N08[3].z_);
-        NZ[1] = _mm_setr_ps(N08[4].z_, N08[5].z_, N08[6].z_, N08[7].z_);
+        NX[0] = SIMD_SETR_F4(N08[0].x_, N08[1].x_, N08[2].x_, N08[3].x_);
+        NX[1] = SIMD_SETR_F4(N08[4].x_, N08[5].x_, N08[6].x_, N08[7].x_);
+        NY[0] = SIMD_SETR_F4(N08[0].y_, N08[1].y_, N08[2].y_, N08[3].y_);
+        NY[1] = SIMD_SETR_F4(N08[4].y_, N08[5].y_, N08[6].y_, N08[7].y_);
+        NZ[0] = SIMD_SETR_F4(N08[0].z_, N08[1].z_, N08[2].z_, N08[3].z_);
+        NZ[1] = SIMD_SETR_F4(N08[4].z_, N08[5].z_, N08[6].z_, N08[7].z_);
 
         for(u32 i = 0; i < size; ++i) {
-            float4 px = _mm_set1_ps(points[i].x_);
-            float4 py = _mm_set1_ps(points[i].y_);
-            float4 pz = _mm_set1_ps(points[i].z_);
-            float4 d0 = _mm_add_ps(_mm_mul_ps(NX[0], px), _mm_add_ps(_mm_mul_ps(NY[0], py), _mm_mul_ps(NZ[0], pz)));
-            float4 d1 = _mm_add_ps(_mm_mul_ps(NX[1], px), _mm_add_ps(_mm_mul_ps(NY[1], py), _mm_mul_ps(NZ[1], pz)));
+            float4 px = SIMD_SET1_F4(points[i].x_);
+            float4 py = SIMD_SET1_F4(points[i].y_);
+            float4 pz = SIMD_SET1_F4(points[i].z_);
+            float4 d0 = SIMD_ADD_F4(SIMD_MUL_F4(NX[0], px), SIMD_ADD_F4(SIMD_MUL_F4(NY[0], py), SIMD_MUL_F4(NZ[0], pz)));
+            float4 d1 = SIMD_ADD_F4(SIMD_MUL_F4(NX[1], px), SIMD_ADD_F4(SIMD_MUL_F4(NY[1], py), SIMD_MUL_F4(NZ[1], pz)));
 
             OBB_ALIGN16 f32 distances[Normals];
-            _mm_store_ps(distances, d0);
-            _mm_store_ps(distances + Dim, d1);
+            SIMD_STORE_F4(distances, d0);
+            SIMD_STORE_F4(distances + Dim, d1);
 
             for(u32 n = 0; n < Normals; ++n) {
                 f32 d = distances[n];
@@ -384,18 +498,18 @@ namespace
 
     float4 distanceSqr(const float4 origin[3], const float4 direction[3], const float4 point[3])
     {
-        float4 dx = _mm_sub_ps(origin[0], point[0]);
-        float4 dy = _mm_sub_ps(origin[1], point[1]);
-        float4 dz = _mm_sub_ps(origin[2], point[2]);
+        float4 dx = SIMD_SUB_F4(origin[0], point[0]);
+        float4 dy = SIMD_SUB_F4(origin[1], point[1]);
+        float4 dz = SIMD_SUB_F4(origin[2], point[2]);
 
-        float4 d = _mm_add_ps(_mm_mul_ps(dx, direction[0]), _mm_add_ps(_mm_mul_ps(dy, direction[1]), _mm_mul_ps(dz, direction[2])));
-        float4 px = _mm_sub_ps(dx, _mm_mul_ps(d, direction[0]));
-        float4 py = _mm_sub_ps(dy, _mm_mul_ps(d, direction[1]));
-        float4 pz = _mm_sub_ps(dz, _mm_mul_ps(d, direction[2]));
-        px = _mm_mul_ps(px, px);
-        py = _mm_mul_ps(py, py);
-        pz = _mm_mul_ps(pz, pz);
-        return _mm_add_ps(px, _mm_add_ps(py, pz));
+        float4 d = SIMD_ADD_F4(SIMD_MUL_F4(dx, direction[0]), SIMD_ADD_F4(SIMD_MUL_F4(dy, direction[1]), SIMD_MUL_F4(dz, direction[2])));
+        float4 px = SIMD_SUB_F4(dx, SIMD_MUL_F4(d, direction[0]));
+        float4 py = SIMD_SUB_F4(dy, SIMD_MUL_F4(d, direction[1]));
+        float4 pz = SIMD_SUB_F4(dz, SIMD_MUL_F4(d, direction[2]));
+        px = SIMD_MUL_F4(px, px);
+        py = SIMD_MUL_F4(py, py);
+        pz = SIMD_MUL_F4(pz, pz);
+        return SIMD_ADD_F4(px, SIMD_ADD_F4(py, pz));
     }
 
     std::tuple<f32, u32> findFurthestPoint(const Vector3& origin, const Vector3& direction, u32 size, const Vector3* points)
@@ -413,35 +527,35 @@ namespace
         return std::make_tuple(maxDistance, maxi);
 #else
         float4 d[3];
-        d[0] = _mm_set1_ps(direction.x_);
-        d[1] = _mm_set1_ps(direction.y_);
-        d[2] = _mm_set1_ps(direction.z_);
+        d[0] = SIMD_SET1_F4(direction.x_);
+        d[1] = SIMD_SET1_F4(direction.y_);
+        d[2] = SIMD_SET1_F4(direction.z_);
         float4 o[3];
-        o[0] = _mm_set1_ps(origin.x_);
-        o[1] = _mm_set1_ps(origin.y_);
-        o[2] = _mm_set1_ps(origin.z_);
-        float4 maxx4 = _mm_set1_ps(-Infinity);
-        int4 maxi4 = _mm_set1_epi32(-1);
-        int4 index4 = _mm_set_epi32(3, 2, 1, 0);
-        int4 four = _mm_set1_epi32(4);
+        o[0] = SIMD_SET1_F4(origin.x_);
+        o[1] = SIMD_SET1_F4(origin.y_);
+        o[2] = SIMD_SET1_F4(origin.z_);
+        float4 maxx4 = SIMD_SET1_F4(-Infinity);
+        int4 maxi4 = SIMD_SET1_I4(-1);
+        int4 index4 = SIMD_SET_I4(3, 2, 1, 0);
+        int4 four = SIMD_SET1_I4(4);
         u32 size4 = size & ~(Dim - 1);
         for(u32 i = 0; i < size4; i += 4) {
             float4 p[3];
             //aos2soa(p[0], p[1], p[2], points + i);
-            p[0] = _mm_set_ps(points[i+3].x_, points[i+2].x_, points[i+1].x_, points[i+0].x_);
-            p[1] = _mm_set_ps(points[i+3].y_, points[i+2].y_, points[i+1].y_, points[i+0].y_);
-            p[2] = _mm_set_ps(points[i+3].z_, points[i+2].z_, points[i+1].z_, points[i+0].z_);
+            p[0] = SIMD_SET_F4(points[i+3].x_, points[i+2].x_, points[i+1].x_, points[i+0].x_);
+            p[1] = SIMD_SET_F4(points[i+3].y_, points[i+2].y_, points[i+1].y_, points[i+0].y_);
+            p[2] = SIMD_SET_F4(points[i+3].z_, points[i+2].z_, points[i+1].z_, points[i+0].z_);
 
             float4 d2 = distanceSqr(o, d, p);
-            int4 mask = _mm_castps_si128(_mm_cmplt_ps(maxx4, d2));
-            maxx4 = _mm_max_ps(maxx4, d2);
-            maxi4 = _mm_or_si128(_mm_and_si128(mask, index4), _mm_andnot_si128(mask, maxi4));
-            index4 = _mm_add_epi32(index4, four);
+            int4 mask = SIMD_CAST_F4_I4(SIMD_CMPLT_F4(maxx4, d2));
+            maxx4 = SIMD_MAX_F4(maxx4, d2);
+            maxi4 = SIMD_OR_I4(SIMD_AND_I4(mask, index4), SIMD_ANDNOT_I4(mask, maxi4));
+            index4 = SIMD_ADD_I4(index4, four);
         }
         OBB_ALIGN16 f32 dmaxx[Dim];
         OBB_ALIGN16 u32 dmaxi[Dim];
-        _mm_store_ps(dmaxx, maxx4);
-        _mm_store_si128(reinterpret_cast<int4*>(dmaxi), maxi4);
+        SIMD_STORE_F4(dmaxx, maxx4);
+        SIMD_STORE_I4(dmaxi, maxi4);
 
         f32 maxDistance = dmaxx[0];
         u32 maxi = dmaxi[0];
@@ -511,45 +625,45 @@ namespace
     std::tuple<u32, u32> findFurthestMinMaxOnPlain(const Vector3& origin, const Vector3& normal, const SoA8& soa)
     {
         f32 d = dot(origin, normal);
-        float4 maxDistance = _mm_set1_ps(Epsilon);
-        float4 minDistance = _mm_set1_ps(-Epsilon);
-        int4 maxi = _mm_set1_epi32(-1);
-        int4 mini = _mm_set1_epi32(-1);
+        float4 maxDistance = SIMD_SET1_F4(Epsilon);
+        float4 minDistance = SIMD_SET1_F4(-Epsilon);
+        int4 maxi = SIMD_SET1_I4(-1);
+        int4 mini = SIMD_SET1_I4(-1);
 
-        float4 nx = _mm_set1_ps(normal.x_);
-        float4 ny = _mm_set1_ps(normal.y_);
-        float4 nz = _mm_set1_ps(normal.z_);
-        float4 d4 = _mm_set1_ps(d);
-        int4 index = _mm_set_epi32(3, 2, 1, 0);
-        int4 four = _mm_set1_epi32(4);
+        float4 nx = SIMD_SET1_F4(normal.x_);
+        float4 ny = SIMD_SET1_F4(normal.y_);
+        float4 nz = SIMD_SET1_F4(normal.z_);
+        float4 d4 = SIMD_SET1_F4(d);
+        int4 index = SIMD_SET_I4(3, 2, 1, 0);
+        int4 four = SIMD_SET1_I4(4);
         for(u32 i = 0; i < InitialPoints; i += 4) {
-            float4 px = _mm_load_ps(soa.x_ + i);
-            float4 py = _mm_load_ps(soa.y_ + i);
-            float4 pz = _mm_load_ps(soa.z_ + i);
-            float4 mx = _mm_mul_ps(px, nx);
-            float4 my = _mm_mul_ps(py, ny);
-            float4 mz = _mm_mul_ps(pz, nz);
-            float4 distance = _mm_sub_ps(_mm_add_ps(mx, _mm_add_ps(my, mz)), d4);
-            float4 mask0 = _mm_cmplt_ps(maxDistance, distance);
-            float4 mask1 = _mm_cmplt_ps(distance, minDistance);
+            float4 px = SIMD_LOAD_F4(soa.x_ + i);
+            float4 py = SIMD_LOAD_F4(soa.y_ + i);
+            float4 pz = SIMD_LOAD_F4(soa.z_ + i);
+            float4 mx = SIMD_MUL_F4(px, nx);
+            float4 my = SIMD_MUL_F4(py, ny);
+            float4 mz = SIMD_MUL_F4(pz, nz);
+            float4 distance = SIMD_SUB_F4(SIMD_ADD_F4(mx, SIMD_ADD_F4(my, mz)), d4);
+            float4 mask0 = SIMD_CMPLT_F4(maxDistance, distance);
+            float4 mask1 = SIMD_CMPLT_F4(distance, minDistance);
 
-            maxDistance = _mm_or_ps(_mm_and_ps(mask0, distance), _mm_andnot_ps(mask0, maxDistance));
-            minDistance = _mm_or_ps(_mm_and_ps(mask1, distance), _mm_andnot_ps(mask1, minDistance));
+            maxDistance = SIMD_OR_F4(SIMD_AND_F4(mask0, distance), SIMD_ANDNOT_F4(mask0, maxDistance));
+            minDistance = SIMD_OR_F4(SIMD_AND_F4(mask1, distance), SIMD_ANDNOT_F4(mask1, minDistance));
 
-            int4 maski0 = _mm_castps_si128(mask0);
-            int4 maski1 = _mm_castps_si128(mask1);
-            maxi = _mm_or_si128(_mm_and_si128(maski0, index), _mm_andnot_si128(maski0, maxi));
-            mini = _mm_or_si128(_mm_and_si128(maski1, index), _mm_andnot_si128(maski1, mini));
-            index = _mm_add_epi32(index, four);
+            int4 maski0 = SIMD_CAST_F4_I4(mask0);
+            int4 maski1 = SIMD_CAST_F4_I4(mask1);
+            maxi = SIMD_OR_I4(SIMD_AND_I4(maski0, index), SIMD_ANDNOT_I4(maski0, maxi));
+            mini = SIMD_OR_I4(SIMD_AND_I4(maski1, index), SIMD_ANDNOT_I4(maski1, mini));
+            index = SIMD_ADD_I4(index, four);
         }
         OBB_ALIGN16 f32 tminx[Dim];
         OBB_ALIGN16 f32 tmaxx[Dim];
         OBB_ALIGN16 u32 tmini[Dim];
         OBB_ALIGN16 u32 tmaxi[Dim];
-        _mm_store_ps(tminx, minDistance);
-        _mm_store_ps(tmaxx, maxDistance);
-        _mm_store_si128(reinterpret_cast<__m128i*>(tmini), mini);
-        _mm_store_si128(reinterpret_cast<__m128i*>(tmaxi), maxi);
+        SIMD_STORE_F4(tminx, minDistance);
+        SIMD_STORE_F4(tmaxx, maxDistance);
+        SIMD_STORE_I4(tmini, mini);
+        SIMD_STORE_I4(tmaxi, maxi);
         for(u32 i = 1; i < Dim; ++i) {
             if(tminx[i] < tminx[0]) {
                 tminx[0] = tminx[i];
@@ -630,9 +744,9 @@ void DiTO_simd(OBB& obb, u32 size, const Vector3* points)
     }
     OBB_ALIGN16 SoA8 candidates;
     for(u32 i = 0; i < InitialPoints; i += 4) {
-        _mm_store_ps(&candidates.x_[i], _mm_load_ps(&minmax.x_[i]));
-        _mm_store_ps(&candidates.y_[i], _mm_load_ps(&minmax.y_[i]));
-        _mm_store_ps(&candidates.z_[i], _mm_load_ps(&minmax.z_[i]));
+        SIMD_STORE_F4(&candidates.x_[i], SIMD_LOAD_F4(&minmax.x_[i]));
+        SIMD_STORE_F4(&candidates.y_[i], SIMD_LOAD_F4(&minmax.y_[i]));
+        SIMD_STORE_F4(&candidates.z_[i], SIMD_LOAD_F4(&minmax.z_[i]));
     }
     if(size < InitialPoints) {
         for(u32 i = 0; i < size; ++i) {

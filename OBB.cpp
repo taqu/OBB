@@ -7,18 +7,15 @@
 #endif
 
 #include <cassert>
+#include <cstring>
 #include <limits>
 #include <random>
+#include <tuple>
 
 namespace obb
 {
 namespace
 {
-    f32 absolute(f32 x)
-    {
-        return fabsf(x);
-    }
-
     f32 maximum(f32 x0, f32 x1)
     {
         return x0 < x1 ? x1 : x0;
@@ -27,11 +24,6 @@ namespace
     f32 minimum(f32 x0, f32 x1)
     {
         return x0 < x1 ? x0 : x1;
-    }
-
-    bool sameSign(f32 x0, f32 x1)
-    {
-        return (zero < x0) == (zero < x1);
     }
 } // namespace
 
